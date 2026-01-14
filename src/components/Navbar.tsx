@@ -30,7 +30,7 @@ const Navbar = () => {
   const navLinks = [
     { name: "How it Works", href: "/#how-it-works" },
     { name: "Sectors", href: "/#sectors" },
-    { name: "Resources", href: "/#resources" },
+    { name: "Dashboard", href: "/Dashboard" },
   ];
 
   const isHome = location.pathname === "/";
@@ -106,7 +106,7 @@ const Navbar = () => {
                     Sign In
                   </Button>
                 </Link>
-                <Link to="/auth" state={{ from: "/onboarding" }}>
+                <Link to="/auth" state={{ from: "/Dashboard" }}>
                   <Button className="btn-teal rounded-full px-6">
                     Get Started
                   </Button>

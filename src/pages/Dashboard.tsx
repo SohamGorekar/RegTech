@@ -142,7 +142,7 @@ const Dashboard = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.1 }}
-            className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10"
+            className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10"
           >
             <Card className="bg-card border-border">
               <CardContent className="p-6">
@@ -169,20 +169,6 @@ const Dashboard = () => {
                       {projects.reduce((acc, p) => acc + p.completedTasks, 0)}
                     </p>
                     <p className="text-sm text-muted-foreground">Tasks Completed</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-card border-border">
-              <CardContent className="p-6">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-gold/10 flex items-center justify-center">
-                    <MapPin className="w-6 h-6 text-gold" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold text-foreground">Maharashtra</p>
-                    <p className="text-sm text-muted-foreground">Primary Region</p>
                   </div>
                 </div>
               </CardContent>

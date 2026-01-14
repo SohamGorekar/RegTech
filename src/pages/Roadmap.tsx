@@ -818,16 +818,6 @@ const Roadmap = () => {
                       SaaS Startup • Private Limited • Thane, Maharashtra
                     </p>
                   </div>
-                  {/* <div className="flex gap-2">
-                    <Button variant="outline" size="sm" className="gap-2">
-                      <Download className="h-4 w-4" />
-                      Export
-                    </Button>
-                    <Button variant="outline" size="sm" className="gap-2">
-                      <Share2 className="h-4 w-4" />
-                      Share
-                    </Button>
-                  </div> */}
                 </div>
               </motion.div>
 

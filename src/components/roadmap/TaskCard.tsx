@@ -242,7 +242,7 @@ const TaskCard = ({
                   </a>
                 </Button>
 
-                <Sheet>
+                {/* <Sheet>
                   <SheetTrigger asChild>
                     <Button
                       size="sm"
@@ -276,7 +276,7 @@ const TaskCard = ({
                       </Button>
                     </div>
                   </SheetContent>
-                </Sheet>
+                </Sheet> */}
 
                 {actualStatus !== "completed" && (
                   <Button

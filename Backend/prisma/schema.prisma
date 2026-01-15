@@ -1,0 +1,64 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name          String    @db.VarChar(255)
+  email         String    @unique @db.VarChar(255)
+  passwordHash  String    @map("password_hash") @db.VarChar(255)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  
+  projects      Project[]
+
+  @@map("users")
+}
+
+model Project {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId          String   @map("user_id") @db.Uuid
+  
+  // Data from Onboarding Step 0
+  name            String   @db.VarChar(255)
+  description     String?  @db.Text
+  
+  // Business DNA (Filters for Gemini)
+  domain          String   @db.VarChar(100) // Sector: e.g. Fintech, SaaS
+  locationCity    String   @map("location_city") @db.VarChar(100) // e.g. Thane
+  locationState   String   @map("location_state") @db.VarChar(100) // e.g. Maharashtra
+  legalStructure  String   @map("legal_structure") @db.VarChar(50) // e.g. Pvt Ltd, LLP
+  teamSize        Int      @default(1) @map("team_size")
+  
+  // Dashboard Metrics
+  completedCount  Int      @default(0) @map("completed_count")
+  totalCount      Int      @default(0) @map("total_count")
+  
+  // The AI "Source of Truth"
+  // Stores the full Gemini response matching your Frontend Dummy Data
+  roadmapData     Json     @map("roadmap_data") @db.JsonB
+  
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+  
+  user            User     @relation(fields: [userId], references: [id])
+  taskStatuses    TaskStatus[]
+
+  @@map("projects")
+}
+
+model TaskStatus {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  projectId   String   @map("project_id") @db.Uuid
+  taskId      String   @map("task_id") @db.VarChar(100) // Matches the ID inside the Gemini JSON
+  status      String   @default("pending") @db.VarChar(20) // pending, in-progress, completed
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+  
+  project     Project  @relation(fields: [projectId], references: [id])
+
+  @@unique([projectId, taskId])
+  @@map("task_status")
+}

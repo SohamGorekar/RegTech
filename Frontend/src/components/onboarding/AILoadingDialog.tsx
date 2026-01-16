@@ -2,60 +2,74 @@ import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
-import { Scale, FileSearch, MapPin, Shield, Sparkles } from "lucide-react";
+import { Scale, FileSearch, MapPin, Shield, Sparkles, CheckCircle } from "lucide-react";
 
 const loadingSteps = [
-  { message: "Scanning MCA Master Directions...", icon: FileSearch },
-  { message: "Checking Thane Municipal Bye-laws...", icon: MapPin },
-  { message: "Analyzing GST compliance requirements...", icon: Scale },
-  { message: "Generating DPDP Privacy Framework...", icon: Shield },
-  { message: "Finalizing your personalized roadmap...", icon: Sparkles },
+  { message: "Analyzing your business requirements...", icon: FileSearch },
+  { message: "Scanning regulatory databases...", icon: MapPin },
+  { message: "Checking sector-specific compliance...", icon: Scale },
+  { message: "Reviewing state & local laws...", icon: Shield },
+  { message: "Generating personalized roadmap...", icon: Sparkles },
 ];
 
 interface AILoadingDialogProps {
   open: boolean;
   onComplete: () => void;
+  isGenerating?: boolean;  // NEW: tracks if API is still running
 }
 
-const AILoadingDialog = ({ open, onComplete }: AILoadingDialogProps) => {
+const AILoadingDialog = ({ open, onComplete, isGenerating = true }: AILoadingDialogProps) => {
   const [currentStep, setCurrentStep] = useState(0);
   const [progress, setProgress] = useState(0);
+  const [isDone, setIsDone] = useState(false);
 
   useEffect(() => {
     if (!open) {
       setCurrentStep(0);
       setProgress(0);
+      setIsDone(false);
       return;
     }
 
-    const stepDuration = 1500;
+    // Cycle through steps while generating
+    const stepDuration = 3000; // 3 seconds per step
+    
     const progressInterval = setInterval(() => {
       setProgress((prev) => {
-        const target = ((currentStep + 1) / loadingSteps.length) * 100;
-        if (prev >= target - 5) return prev;
-        return prev + 2;
+        if (isDone) return 100;
+        // Don't go past 95% until API is done
+        const maxProgress = isGenerating ? 95 : 100;
+        if (prev >= maxProgress) return prev;
+        return prev + 1;
       });
-    }, 50);
+    }, 100);
 
     const stepInterval = setInterval(() => {
       setCurrentStep((prev) => {
-        if (prev >= loadingSteps.length - 1) {
-          clearInterval(stepInterval);
-          clearInterval(progressInterval);
-          setTimeout(onComplete, 500);
-          return prev;
+        // Keep cycling through steps while generating
+        if (isGenerating) {
+          return (prev + 1) % loadingSteps.length;
         }
-        return prev + 1;
+        return prev;
       });
     }, stepDuration);
+
+    // When API is done, complete animation
+    if (!isGenerating && !isDone) {
+      setIsDone(true);
+      setProgress(100);
+      setTimeout(() => {
+        onComplete();
+      }, 1000);
+    }
 
     return () => {
       clearInterval(stepInterval);
       clearInterval(progressInterval);
     };
-  }, [open, currentStep, onComplete]);
+  }, [open, isGenerating, isDone, onComplete]);
 
-  const CurrentIcon = loadingSteps[currentStep]?.icon || Sparkles;
+  const CurrentIcon = isDone ? CheckCircle : (loadingSteps[currentStep]?.icon || Sparkles);
 
   return (
     <Dialog open={open}>
@@ -64,13 +78,14 @@ const AILoadingDialog = ({ open, onComplete }: AILoadingDialogProps) => {
           <div className="flex flex-col items-center text-center">
             {/* Animated icon */}
             <motion.div
-              key={currentStep}
+              key={isDone ? 'done' : currentStep}
               initial={{ scale: 0.5, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.5, opacity: 0 }}
-              className="w-20 h-20 rounded-full gradient-teal flex items-center justify-center mb-6 shadow-glow"
+              className={`w-20 h-20 rounded-full flex items-center justify-center mb-6 shadow-glow ${
+                isDone ? 'bg-emerald-500' : 'gradient-teal'
+              }`}
             >
-              <CurrentIcon className="w-10 h-10 text-accent-foreground" />
+              <CurrentIcon className="w-10 h-10 text-white" />
             </motion.div>
 
             {/* Progress bar */}
@@ -81,18 +96,18 @@ const AILoadingDialog = ({ open, onComplete }: AILoadingDialogProps) => {
             {/* Loading message */}
             <AnimatePresence mode="wait">
               <motion.p
-                key={currentStep}
+                key={isDone ? 'done' : currentStep}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
                 className="text-lg font-medium text-card-foreground mb-2"
               >
-                {loadingSteps[currentStep]?.message}
+                {isDone ? "Roadmap generated successfully!" : loadingSteps[currentStep]?.message}
               </motion.p>
             </AnimatePresence>
 
             <p className="text-sm text-muted-foreground">
-              Our AI is analyzing regulations for your specific case
+              {isDone ? "Redirecting to your roadmap..." : "AI is analyzing regulations for your business..."}
             </p>
 
             {/* Step indicators */}
@@ -100,13 +115,11 @@ const AILoadingDialog = ({ open, onComplete }: AILoadingDialogProps) => {
               {loadingSteps.map((_, index) => (
                 <motion.div
                   key={index}
-                  initial={{ scale: 0.8 }}
                   animate={{
-                    scale: index === currentStep ? 1.2 : 1,
-                    backgroundColor:
-                      index <= currentStep
-                        ? "hsl(173 90% 32%)"
-                        : "hsl(var(--muted))",
+                    scale: index === currentStep && !isDone ? 1.2 : 1,
+                    backgroundColor: isDone || index <= currentStep
+                      ? "hsl(173 90% 32%)"
+                      : "hsl(var(--muted))",
                   }}
                   className="w-2 h-2 rounded-full"
                 />

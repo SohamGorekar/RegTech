@@ -3,6 +3,7 @@ import prisma from '../utils/prisma';
 import { ProjectListItem, ProjectsResponse } from '../types';
 import { validate, createProjectSchema } from '../utils/validation';
 import { generateDummyRoadmap } from '../utils/dummyRoadmap';
+import { generateRoadmapWithGemini } from '../services/geminiService';
 
 // Helper function to format legal structure
 const formatLegalStructure = (structure: string): string => {
@@ -33,6 +34,79 @@ const countTotalTasks = (roadmapData: any): number => {
 };
 
 // Create a new project (NEW - FOR ONBOARDING)
+// export const createProject = async (req: Request, res: Response): Promise<void> => {
+//   try {
+//     if (!req.user) {
+//       res.status(401).json({
+//         success: false,
+//         error: 'Unauthorized'
+//       });
+//       return;
+//     }
+
+//     // Validate request body
+//     const validation = validate(createProjectSchema, req.body);
+    
+//     if (!validation.success) {
+//       res.status(400).json({
+//         success: false,
+//         error: validation.error
+//       });
+//       return;
+//     }
+
+//     const { projectName, projectDescription, sector, state, city, structure, teamSize } = validation.data;
+
+//     // Generate dummy roadmap (will be replaced with Gemini API call later)
+//     const roadmapData = generateDummyRoadmap(sector, structure);
+//     const totalTasks = countTotalTasks(roadmapData);
+
+//     // Create project in database
+//     const newProject = await prisma.project.create({
+//       data: {
+//         userId: req.user.userId,
+//         name: projectName,
+//         description: projectDescription,
+//         domain: sector,
+//         locationCity: city.toLowerCase(),
+//         locationState: state.toUpperCase(),
+//         legalStructure: structure.toLowerCase(),
+//         teamSize: teamSize,
+//         completedCount: 0,
+//         totalCount: totalTasks,
+//         roadmapData: roadmapData
+//       }
+//     });
+
+//     res.status(201).json({
+//       success: true,
+//       project: {
+//         id: newProject.id,
+//         name: newProject.name,
+//         description: newProject.description,
+//         sector: newProject.domain,
+//         location: `${capitalizeLocation(newProject.locationCity)}, ${newProject.locationState}`,
+//         structure: formatLegalStructure(newProject.legalStructure),
+//         progress: 0,
+//         totalTasks: newProject.totalCount,
+//         completedTasks: 0,
+//         createdAt: newProject.createdAt.toISOString().split('T')[0]
+//       },
+//       message: 'Project created successfully'
+//     });
+
+//   } catch (error) {
+//     console.error('Create project error:', error);
+//     res.status(500).json({
+//       success: false,
+//       error: 'Failed to create project'
+//     });
+//   }
+// };
+
+
+
+// Create a new project with AI-generated roadmap
 export const createProject = async (req: Request, res: Response): Promise<void> => {
   try {
     if (!req.user) {
@@ -56,11 +130,35 @@ export const createProject = async (req: Request, res: Response): Promise<void> 
 
     const { projectName, projectDescription, sector, state, city, structure, teamSize } = validation.data;
 
-    // Generate dummy roadmap (will be replaced with Gemini API call later)
-    const roadmapData = generateDummyRoadmap(sector, structure);
+    console.log(`🚀 Creating project: ${projectName}`);
+
+    // Generate AI roadmap using Gemini
+    let roadmapData;
+    let generationMethod = 'ai';
+
+    try {
+      roadmapData = await generateRoadmapWithGemini({
+        projectName,
+        projectDescription,
+        sector,
+        state,
+        city,
+        structure,
+        teamSize
+      });
+      console.log('✅ Used Gemini AI for roadmap generation');
+    } catch (geminiError: any) {
+      console.error('⚠️ Gemini generation failed, using dummy data:', geminiError.message);
+      // Fallback to dummy data if Gemini fails
+      roadmapData = generateDummyRoadmap(sector, structure);
+      generationMethod = 'dummy';
+    }
+
     const totalTasks = countTotalTasks(roadmapData);
 
-    // Create project in database
+    console.log(`📊 Total tasks counted: ${totalTasks}`);
+
+    // Create project in database with roadmap data saved in JSONB column
     const newProject = await prisma.project.create({
       data: {
         userId: req.user.userId,
@@ -73,9 +171,11 @@ export const createProject = async (req: Request, res: Response): Promise<void> 
         teamSize: teamSize,
         completedCount: 0,
         totalCount: totalTasks,
-        roadmapData: roadmapData
+        roadmapData: roadmapData // Saved as JSONB in PostgreSQL
       }
     });
+
+    console.log(`✅ Project created in database with ID: ${newProject.id}`);
 
     res.status(201).json({
       success: true,
@@ -91,11 +191,11 @@ export const createProject = async (req: Request, res: Response): Promise<void> 
         completedTasks: 0,
         createdAt: newProject.createdAt.toISOString().split('T')[0]
       },
-      message: 'Project created successfully'
+      message: `Project created successfully with ${generationMethod === 'ai' ? 'AI-generated' : 'template'} roadmap`
     });
 
   } catch (error) {
-    console.error('Create project error:', error);
+    console.error('❌ Create project error:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to create project'

@@ -1,105 +1,120 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+
+const API_URL = 'http://localhost:5000/api';
 
 interface User {
-  email: string;
+  id: string;
   name: string;
+  email: string;
+  createdAt: string;
 }
 
 interface AuthContextType {
   user: User | null;
-  isAuthenticated: boolean;
+  token: string | null;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   signup: (name: string, email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
+  isAuthenticated: boolean;
+  isLoading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Dummy credentials for testing
-const DUMMY_USERS = [
-  { email: "demo@regtech.com", password: "demo123", name: "Demo User" },
-  { email: "founder@startup.com", password: "startup123", name: "Startup Founder" },
-];
-
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [token, setToken] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
+  // Load token and user from localStorage on mount
   useEffect(() => {
-    // Check localStorage for existing session
-    const savedUser = localStorage.getItem("regtech_user");
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
+    const storedToken = localStorage.getItem('regtech_token');
+    const storedUser = localStorage.getItem('regtech_user');
+
+    if (storedToken && storedUser) {
+      setToken(storedToken);
+      setUser(JSON.parse(storedUser));
     }
+    setIsLoading(false);
   }, []);
 
-  const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
-    // Simulate API delay
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+  const signup = async (name: string, email: string, password: string) => {
+    try {
+      const response = await fetch(`${API_URL}/auth/signup`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name, email, password }),
+      });
 
-    // Check against dummy credentials
-    const foundUser = DUMMY_USERS.find(
-      (u) => u.email.toLowerCase() === email.toLowerCase() && u.password === password
-    );
+      const data = await response.json();
 
-    if (foundUser) {
-      const userData = { email: foundUser.email, name: foundUser.name };
-      setUser(userData);
-      localStorage.setItem("regtech_user", JSON.stringify(userData));
-      return { success: true };
+      if (data.success && data.token && data.user) {
+        setToken(data.token);
+        setUser(data.user);
+        localStorage.setItem('regtech_token', data.token);
+        localStorage.setItem('regtech_user', JSON.stringify(data.user));
+        
+        // Clean up old localStorage keys
+        localStorage.removeItem('regtech_registered_users');
+        
+        return { success: true };
+      } else {
+        return { success: false, error: data.error || 'Signup failed' };
+      }
+    } catch (error) {
+      console.error('Signup error:', error);
+      return { success: false, error: 'Network error. Please try again.' };
     }
-
-    // Also check localStorage for signed up users
-    const registeredUsers = JSON.parse(localStorage.getItem("regtech_registered_users") || "[]");
-    const registeredUser = registeredUsers.find(
-      (u: any) => u.email.toLowerCase() === email.toLowerCase() && u.password === password
-    );
-
-    if (registeredUser) {
-      const userData = { email: registeredUser.email, name: registeredUser.name };
-      setUser(userData);
-      localStorage.setItem("regtech_user", JSON.stringify(userData));
-      return { success: true };
-    }
-
-    return { success: false, error: "Invalid email or password" };
   };
 
-  const signup = async (name: string, email: string, password: string): Promise<{ success: boolean; error?: string }> => {
-    // Simulate API delay
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+  const login = async (email: string, password: string) => {
+    try {
+      const response = await fetch(`${API_URL}/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
 
-    // Check if email already exists
-    const existingDummy = DUMMY_USERS.find((u) => u.email.toLowerCase() === email.toLowerCase());
-    if (existingDummy) {
-      return { success: false, error: "Email already registered" };
+      const data = await response.json();
+
+      if (data.success && data.token && data.user) {
+        setToken(data.token);
+        setUser(data.user);
+        localStorage.setItem('regtech_token', data.token);
+        localStorage.setItem('regtech_user', JSON.stringify(data.user));
+        return { success: true };
+      } else {
+        return { success: false, error: data.error || 'Login failed' };
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      return { success: false, error: 'Network error. Please try again.' };
     }
-
-    const registeredUsers = JSON.parse(localStorage.getItem("regtech_registered_users") || "[]");
-    const existingUser = registeredUsers.find((u: any) => u.email.toLowerCase() === email.toLowerCase());
-    if (existingUser) {
-      return { success: false, error: "Email already registered" };
-    }
-
-    // Register new user
-    const newUser = { email, password, name };
-    registeredUsers.push(newUser);
-    localStorage.setItem("regtech_registered_users", JSON.stringify(registeredUsers));
-
-    // Auto login after signup
-    const userData = { email, name };
-    setUser(userData);
-    localStorage.setItem("regtech_user", JSON.stringify(userData));
-
-    return { success: true };
   };
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem("regtech_user");
+    setToken(null);
+    localStorage.removeItem('regtech_token');
+    localStorage.removeItem('regtech_user');
   };
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, login, signup, logout }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        token,
+        login,
+        signup,
+        logout,
+        isAuthenticated: !!user && !!token,
+        isLoading,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
@@ -108,7 +123,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider");
+    throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
 };

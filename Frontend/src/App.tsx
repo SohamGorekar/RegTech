@@ -41,7 +41,7 @@ const App = () => (
               }
             />
             <Route
-              path="/roadmap"
+              path="/roadmap/:projectId"
               element={
                 <ProtectedRoute>
                   <Roadmap />
